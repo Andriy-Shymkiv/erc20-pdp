@@ -10,8 +10,7 @@ describe('MyToken', () => {
   }
 
   it('is deployed', async () => {
-    await ethers.getSigners();
-    await ethers.deployContract('MyToken');
+    await loadFixture(deploy);
   });
 
   it('has MTK symbol', async () => {
