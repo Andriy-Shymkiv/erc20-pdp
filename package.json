@@ -2,10 +2,9 @@
   "name": "erc20-pdp",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "hardhat": "^2.19.5"
-  },
-  "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
-    "dotenv": "^16.4.1"
+    "dotenv": "^16.4.1",
+    "hardhat": "^2.19.5",
+    "solidity-coverage": "^0.8.6"
   }
 }
