@@ -2,10 +2,14 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 
-describe('MyToken', () => {
+const NAME = 'MyToken';
+const SYMBOL = 'MTK';
+const DECIMALS = 18;
+
+describe(NAME, () => {
   async function deploy() {
     const [deployer] = await ethers.getSigners();
-    const contract = await ethers.deployContract('MyToken');
+    const contract = await ethers.deployContract(NAME);
     return { contract, deployer };
   }
 
@@ -13,18 +17,18 @@ describe('MyToken', () => {
     await loadFixture(deploy);
   });
 
-  it('has MTK symbol', async () => {
+  it(`has ${SYMBOL} symbol`, async () => {
     const { contract } = await loadFixture(deploy);
-    expect(await contract.symbol()).to.equal('MTK');
+    expect(await contract.symbol()).to.equal(SYMBOL);
   });
 
-  it('has MyToken name', async () => {
+  it(`has ${NAME} name`, async () => {
     const { contract } = await loadFixture(deploy);
-    expect(await contract.name()).to.equal('MyToken');
+    expect(await contract.name()).to.equal(NAME);
   });
 
-  it('has 18 decimals', async () => {
+  it(`has ${DECIMALS} decimals`, async () => {
     const { contract } = await loadFixture(deploy);
-    expect(await contract.decimals()).to.equal(18);
+    expect(await contract.decimals()).to.equal(DECIMALS);
   });
 });
