@@ -36,10 +36,3 @@ interface MyTokenErrors {
      */
     error RecipientIsBlackListed();
 }
-
-/**
- * @dev Indicates an error related to the ownership over a particular token. Used in transfers.
- * @param sender Address whose tokens are being transferred.
- * @param tokenId Identifier number of a token.
- * @param owner Address of the current owner of a token.
- */
