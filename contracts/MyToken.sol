@@ -4,8 +4,9 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./errors.sol";
 
-contract MyToken is ERC20, ERC20Burnable, AccessControl {
+contract MyToken is ERC20, ERC20Burnable, AccessControl, MyTokenErrors {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     mapping(address => bool) public blackList;
@@ -13,69 +14,63 @@ contract MyToken is ERC20, ERC20Burnable, AccessControl {
     event AddedToBlackList(address indexed _address);
     event RemovedFromBlackList(address indexed _address);
 
-    constructor(address[] memory admin) ERC20("MyToken", "MTK") {
-        for (uint256 i = 0; i < admin.length; i++) {
-            _grantRole(ADMIN_ROLE, admin[i]);
+    constructor(address[] memory admins) ERC20("MyToken", "MTK") {
+        for (uint256 i = 0; i < admins.length; i++) {
+            _grantRole(ADMIN_ROLE, admins[i]);
         }
     }
 
     function addToBlackList(
         address[] memory _addresses
-    ) public onlyRole(ADMIN_ROLE) {
+    ) external onlyRole(ADMIN_ROLE) {
         for (uint256 i = 0; i < _addresses.length; i++) {
-            require(
-                _addresses[i] != msg.sender,
-                "You can't add yourself to the blacklist"
-            );
-            require(
-                !hasRole(ADMIN_ROLE, _addresses[i]),
-                "You can't add an admin to the blacklist"
-            );
-            require(
-                !blackList[_addresses[i]],
-                "Address is already in the blacklist"
-            );
-            blackList[_addresses[i]] = true;
-            emit AddedToBlackList(_addresses[i]);
+            address _address = _addresses[i];
+            if (hasRole(ADMIN_ROLE, _address)) {
+                revert CannotBlackListAdmin(_address);
+            }
+            if (blackList[_address]) {
+                revert AlreadyBlackListed(_address);
+            }
+            blackList[_address] = true;
+            emit AddedToBlackList(_address);
         }
     }
 
     function removeFromBlackList(
         address[] memory _addresses
-    ) public onlyRole(ADMIN_ROLE) {
+    ) external onlyRole(ADMIN_ROLE) {
         for (uint256 i = 0; i < _addresses.length; i++) {
-            require(
-                blackList[_addresses[i]],
-                "Address is not in the blacklist"
-            );
-            blackList[_addresses[i]] = false;
-            emit RemovedFromBlackList(_addresses[i]);
+            address _address = _addresses[i];
+            if (!blackList[_address]) {
+                revert NotBlackListed(_address);
+            }
+            blackList[_address] = false;
+            emit RemovedFromBlackList(_address);
         }
     }
 
-    function mint(address to, uint256 amount) public onlyRole(ADMIN_ROLE) {
-        _mint(to, amount);
-        emit Transfer(address(0), to, amount);
+    function mint(address to, uint256 amount) external onlyRole(ADMIN_ROLE) {
+        super._mint(to, amount);
     }
 
-    function burn(uint256 amount) public virtual override onlyRole(ADMIN_ROLE) {
-        super.burn(amount);
-    }
-
-    function transfer(
-        address recipient,
+    function burnFrom(
+        address account,
         uint256 amount
-    ) public override returns (bool) {
-        require(!blackList[recipient], "Recipient is blacklisted");
-        return super.transfer(recipient, amount);
+    ) public override onlyRole(ADMIN_ROLE) {
+        super.burnFrom(account, amount);
     }
 
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public override returns (bool) {
-        require(!blackList[recipient], "Recipient is blacklisted");
-        return super.transferFrom(sender, recipient, amount);
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override {
+        if (blackList[from]) {
+            revert SenderIsBlackListed();
+        }
+        if (blackList[to]) {
+            revert RecipientIsBlackListed();
+        }
+        super._update(from, to, value);
     }
 }

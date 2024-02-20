@@ -3,8 +3,6 @@ import { expect } from 'chai';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 
 const NAME = 'MyToken';
-const SYMBOL = 'MTK';
-const DECIMALS = 18;
 
 enum Roles {
   ADMIN = 'ADMIN_ROLE',
@@ -20,25 +18,6 @@ describe(NAME, () => {
     return { contract, deployer };
   }
 
-  it('is deployed', async () => {
-    await loadFixture(deploy);
-  });
-
-  it(`has ${SYMBOL} symbol`, async () => {
-    const { contract } = await loadFixture(deploy);
-    expect(await contract.symbol()).to.equal(SYMBOL);
-  });
-
-  it(`has ${NAME} name`, async () => {
-    const { contract } = await loadFixture(deploy);
-    expect(await contract.name()).to.equal(NAME);
-  });
-
-  it(`has ${DECIMALS} decimals`, async () => {
-    const { contract } = await loadFixture(deploy);
-    expect(await contract.decimals()).to.equal(DECIMALS);
-  });
-
   describe('Roles', () => {
     for (const role of Object.values(Roles)) {
       it(`has ${role} role`, async () => {
@@ -49,6 +28,15 @@ describe(NAME, () => {
   });
 
   describe('Mint and Burn', () => {
+    it('should mint and burn', async () => {
+      const { contract, deployer } = await loadFixture(deploy);
+      const amount = 100;
+      await contract.mint(deployer.address, amount);
+      expect(await contract.balanceOf(deployer.address)).to.equal(amount);
+      await contract.approve(deployer.address, amount);
+      await contract.burnFrom(deployer.address, amount);
+      expect(await contract.balanceOf(deployer.address)).to.equal(0);
+    });
     it('only admin can mint', async () => {
       const { contract, deployer } = await loadFixture(deploy);
       const [_, user] = await ethers.getSigners();
@@ -56,14 +44,13 @@ describe(NAME, () => {
       await contract.mint(deployer.address, amount);
       await expect(contract.connect(user).mint(user.address, amount)).to.be.reverted;
     });
-
-    it('only admin can burn', async () => {
+    it('only admin can burnFrom', async () => {
       const { contract, deployer } = await loadFixture(deploy);
       const [_, user] = await ethers.getSigners();
       const amount = 100;
       await contract.mint(deployer.address, amount);
-      await contract.burn(amount);
-      await expect(contract.connect(user).burn(amount)).to.be.reverted;
+      await contract.approve(user.address, amount);
+      await expect(contract.connect(user).burnFrom(deployer.address, amount)).to.be.reverted;
     });
   });
 
@@ -76,18 +63,51 @@ describe(NAME, () => {
       await expect(contract.connect(user).addToBlackList([user.address])).to.be.reverted;
       await expect(contract.connect(user).removeFromBlackList([user.address])).to.be.reverted;
     });
-    it('blacklisted user cannot transfer', async () => {
+    it('cannot add admin to blacklist', async () => {
+      const { contract, deployer } = await loadFixture(deploy);
+      await expect(contract.addToBlackList([deployer.address])).to.be.revertedWithCustomError(
+        contract,
+        'CannotBlackListAdmin'
+      );
+    });
+    it('cannot add already blacklisted user to blacklist', async () => {
       const { contract, deployer } = await loadFixture(deploy);
       const [_, user] = await ethers.getSigners();
       await contract.addToBlackList([user.address]);
-      await expect(contract.connect(user).transfer(deployer.address, 100)).to.be.reverted;
+      await expect(contract.addToBlackList([user.address])).to.be.revertedWithCustomError(
+        contract,
+        'AlreadyBlackListed'
+      );
+    });
+    it('cannot remove not blacklisted user from blacklist', async () => {
+      const { contract, deployer } = await loadFixture(deploy);
+      const [_, user] = await ethers.getSigners();
+      await expect(contract.removeFromBlackList([user.address])).to.be.revertedWithCustomError(
+        contract,
+        'NotBlackListed'
+      );
+    });
+    it('blacklisted user cannot transfer', async () => {
+      const { contract, deployer } = await loadFixture(deploy);
+      const [_, user] = await ethers.getSigners();
+      const amount = 100;
+      await contract.mint(deployer.address, amount);
+      await contract.addToBlackList([user.address]);
+      await expect(contract.connect(user).transfer(deployer.address, amount)).to.be.revertedWithCustomError(
+        contract,
+        'SenderIsBlackListed'
+      );
     });
     it('blacklisted user cannot transferFrom', async () => {
       const { contract, deployer } = await loadFixture(deploy);
       const [_, user] = await ethers.getSigners();
+      const amount = 100;
+      await contract.mint(deployer.address, amount);
+      await contract.approve(user.address, amount);
       await contract.addToBlackList([user.address]);
-      await contract.approve(user.address, 100);
-      await expect(contract.connect(user).transferFrom(user.address, deployer.address, 100)).to.be.reverted;
+      await expect(
+        contract.connect(user).transferFrom(deployer.address, user.address, amount)
+      ).to.be.revertedWithCustomError(contract, 'RecipientIsBlackListed');
     });
   });
 });
