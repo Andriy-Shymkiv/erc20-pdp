@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./errors.sol";
 
+// Author: @Andriy-Shymkiv
 contract MyToken is ERC20, ERC20Burnable, AccessControl, MyTokenErrors {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
